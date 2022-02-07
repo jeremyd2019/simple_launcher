@@ -533,7 +533,8 @@ run_child(wchar_t * cmdline)
 
         ok = safe_duplicate_handle(hOut, &si.hStdOutput);
         assert(ok, "stdout duplication failed");
-        CloseHandle(hOut);
+        if (hOut != hErr)
+            CloseHandle(hOut);
         /* We might need stderr late, so don't close it but mark as non-inheritable */
         SetHandleInformation(hErr, HANDLE_FLAG_INHERIT, 0);
 
