@@ -1,0 +1,95 @@
+name: main
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  msvc:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: msvc-2019-x86
+            ARCH: x86
+            SUFFIX: '32'
+          - name: msvc-2019-amd64
+            ARCH: amd64
+            SUFFIX: '64'
+          - name: msvc-2019-arm64
+            ARCH: amd64_arm64
+            SUFFIX: '64-arm'
+          - name: msvc-2019-arm
+            ARCH: amd64_arm
+            SUFFIX: '_arm'
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.10'
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch : ${{ matrix.ARCH }}
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade meson
+      - name: Build
+        run: |
+          meson setup --buildtype release --cross-file .ci/cross_${{ matrix.ARCH }}.txt build
+          meson compile -C build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.name }}
+          path: build
+
+  merge:
+    runs-on: windows-2022
+    needs: ['msvc']
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          path: jobs
+      - name: Merge
+        run: |
+          mkdir dist
+          cp jobs/msvc-2019-amd64/simple_launcher_cli.exe dist/t64.exe
+          cp jobs/msvc-2019-amd64/simple_launcher_gui.exe dist/w64.exe
+          cp jobs/msvc-2019-x86/simple_launcher_cli.exe dist/t32.exe
+          cp jobs/msvc-2019-x86/simple_launcher_gui.exe dist/w32.exe
+          cp jobs/msvc-2019-arm64/simple_launcher_cli.exe dist/t64-arm.exe
+          cp jobs/msvc-2019-arm64/simple_launcher_gui.exe dist/w64-arm.exe
+          cp jobs/msvc-2019-arm/simple_launcher_cli.exe dist/t_arm.exe
+          cp jobs/msvc-2019-arm/simple_launcher_gui.exe dist/w_arm.exe
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: all-in-one
+          path: dist
+
+  mingw:
+    runs-on: windows-2022
+    name: mingw-ucrt64
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: UCRT64
+          install: >-
+            mingw-w64-ucrt-x86_64-cc
+            mingw-w64-ucrt-x86_64-meson
+      - name: Build
+        run: |
+          meson setup --buildtype release build
+          meson compile -C build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: mingw-ucrt64
+          path: build
