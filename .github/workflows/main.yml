@@ -69,6 +69,56 @@ jobs:
           name: all-in-one
           path: dist
 
+  test-10875:
+    runs-on: windows-2022
+    name: test-10875
+    needs: ['merge']
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: all-in-one
+          path: testlauncher
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+      - uses: msys2/setup-msys@v2
+        with:
+          release: false
+      - name: Test 10865
+        shell: msys2 {0}
+        run: |
+          python -m pip install -U 'pip==22.0.2' 'wheel'
+          rm -rf testscript
+          mkdir testscript && cd testscript
+          cat > setup.py <<'END'
+          # setup.py
+          from setuptools import setup
+          setup(
+            name="test",
+            packages=["testing"],
+            entry_points={
+              "console_scripts": [
+                "test-script=testing:main"
+              ]
+            }
+          )
+          END
+          mkdir testing
+          cat > testing/__init__.py <<'END'
+          # testing/__init__.py
+          import sys
+          def main():
+            print(f"stdin={sys.stdin}")
+            print(f"stdout={sys.stdout}")
+            print(f"stderr={sys.stderr}")
+          END
+          python -m pip install .
+          test-script
+          rm -rf build test.egg-info
+          cp -f ../testlauncher/* "$(cygpath -u "$(python -c "import sys; print(sys.prefix)")")/Lib/site-packages/pip/_vendor/distlib/" 
+          python -m pip install .
+          test-script
+
   mingw:
     runs-on: windows-2022
     name: mingw-ucrt64
