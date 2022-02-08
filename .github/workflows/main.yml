@@ -110,11 +110,11 @@ jobs:
             print(f"stderr={sys.stderr}")
           END
           python -m pip install .
-          test-script
+          script -c "test-script" /dev/null
           rm -rf build test.egg-info
           cp -f ../testlauncher/* "$(cygpath -u "$(python -c "import sys; print(sys.prefix)")")/Lib/site-packages/pip/_vendor/distlib/" 
           python -m pip install .
-          test-script
+          script -c "test-script" /dev/null
 
   mingw:
     runs-on: windows-2022
